@@ -1,0 +1,23 @@
+# --- Database ---
+psycopg2-binary==2.9.7
+sqlalchemy==2.0.19
+
+# --- Data Processing ---
+pandas==2.0.3
+numpy==1.24.3
+
+# --- API Clients ---
+requests==2.31.0
+google-api-python-client==2.95.0
+praw==7.7.1
+
+# --- Analysis & Visualization ---
+matplotlib==3.7.2
+seaborn==0.12.2
+plotly==5.15.0
+
+# --- Web App ---
+streamlit==1.25.0
+
+# --- Environment & Configuration ---
+python-dotenv==1.0.0
