@@ -3,7 +3,7 @@ Flask==2.3.2
 Flask-SQLAlchemy==3.0.5
 
 # --- Database ---
-psycopg2-binary==2.9.7
+psycopg2-binary==2.9.10
 sqlalchemy==2.0.19
 
 # --- Data Processing ---
