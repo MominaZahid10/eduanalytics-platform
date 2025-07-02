@@ -3,11 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 from config import config_by_name
+from flask_migrate import Migrate
+
 
 config_name=os.getenv('FLASK_ENV','development')
 app=Flask(__name__)
 app.config.from_object(config_by_name[config_name])
 db=SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 class Platform(db.Model):
     __tablename__="platforms"
@@ -42,6 +45,8 @@ class Course(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     platform = db.relationship("Platform", back_populates="courses")
     engagement_metrics = db.relationship("EngagementMetric", back_populates="course")
+    tags = db.Column(db.ARRAY(db.String))  
+
 
     def __repr__(self):
         return f'<Course {self.title[:30]}...>'
@@ -54,6 +59,7 @@ class EngagementMetric(db.Model):
     value = db.Column(db.Float, nullable=False)
     recorded_at = db.Column(db.DateTime, default=datetime.utcnow)
     course = db.relationship("Course", back_populates="engagement_metrics")
+
 
     def __repr__(self):
         return f'<Metric {self.metric_type}: {self.value}>'
