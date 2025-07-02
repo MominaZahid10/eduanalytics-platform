@@ -26,27 +26,21 @@ def setup_database():
                     "description": "Online courses from top universities and companies"
                 },
                 {
-                    "name": "Udemy",
-                    "base_url": "https://www.udemy.com",
-                    "is_active": False,
-                    "description": "Marketplace for learning and teaching online"
-                },
-                {
-                    "name": "edX",
-                    "base_url": "https://www.edx.org",
-                    "is_active": False,
-                    "description": "High-quality courses from the world's best universities"
-                },
-                {
                     "name": "Khan Academy",
                     "base_url": "https://www.khanacademy.org",
                     "is_active": False,
                     "description": "Free online courses, lessons and practice"
-                }
+                },
+                {
+                     "name": "Reddit",
+                     "base_url": "https://www.reddit.com",
+                     "is_active": False,
+                     "description": "Community-driven discussions and course recommendations"
+}
+
           ]
           added_count = 0
           for platform_info in platforms_data:
-                # Check if platform already exists
                 existing = Platform.query.filter_by(name=platform_info["name"]).first()
                 
                 if not existing:
@@ -56,11 +50,9 @@ def setup_database():
                         is_active=platform_info["is_active"]
                     )
                     
-                    # Add description if your Platform model has this field
                     if hasattr(Platform, 'description'):
                         platform.description = platform_info["description"]
                     
-                    # Add created_at if your Platform model has this field
                     if hasattr(Platform, 'created_at'):
                         platform.created_at = datetime.utcnow()
                     
@@ -70,13 +62,11 @@ def setup_database():
                 else:
                     print(f" Platform already exists: {platform_info['name']}")
             
-            # Commit all changes
           db.session.commit()
             
           print(f" Database setup complete!")
           print(f"Added {added_count} new platforms")
             
-            # Show summary
           total_platforms = Platform.query.count()
           active_platforms = Platform.query.filter_by(is_active=True).count()
             
@@ -91,12 +81,10 @@ def setup_database():
             return False
 
 def verify_setup():
-    """Verify that the database setup was successful"""
     print(" Verifying database setup...")
     
     with app.app_context():
         try:
-            # Check if YouTube platform exists and is active
             youtube = Platform.query.filter_by(name="YouTube").first()
             if youtube and youtube.is_active:
                 print(" YouTube platform is ready for data collection")
@@ -113,15 +101,10 @@ if __name__ == "__main__":
     print(" Starting database setup...")
     print("=" * 50)
     
-    # Setup database
     if setup_database():
         # Verify setup
         if verify_setup():
             print(" SUCCESS: Your database is ready!")
-            print(" Next steps:")
-            print("1. Make sure you have YOUTUBE_API_KEY in your .env file")
-            print("2. Run: python youtube_data_collector.py")
-            print("3. Start your Flask app to see the collected courses")
         else:
             print(" Setup verification failed")
             sys.exit(1)
