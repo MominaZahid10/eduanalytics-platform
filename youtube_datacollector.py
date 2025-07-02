@@ -7,17 +7,14 @@ from typing import List, Dict, Any, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from config import config_by_name
-from collections import Counter
+from Basecollector import BaseCollector
 
+# Configuration
 env = os.getenv("FLASK_ENV", "default")
 current_config = config_by_name[env]
-
 api_key = current_config.YOUTUBE_API_KEY
-try:
-    from mainapp import app, db, Platform, Course, EngagementMetric
-except ImportError:
-    print(" Error: Could not import Flask app and models.")
-    sys.exit(1)
+
+# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -28,17 +25,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class YouTubeDataCollector:
-    def __init__(self):
-        self.api_key=api_key
-        if not self.api_key:
-            raise ValueError("Youtube api key not found ")
-        try:
-            self.youtube=build('youtube','v3',developerKey=self.api_key)
-            logger.info("Youtube api client initialized")
-        except Exception as e:
-            raise ValueError("Failed to initialize youtube api key")
+class YouTubeDataCollector(BaseCollector):
+    """Enhanced YouTube collector using BaseCollector architecture"""
+    
+    def __init__(self, rate_limit_delay: float = 2.0):
+        super().__init__("YouTube", rate_limit_delay)
         
+        self.api_key = api_key
+        if not self.api_key:
+            raise ValueError("YouTube API key not found")
+        
+        try:
+            self.youtube = build('youtube', 'v3', developerKey=self.api_key)
+            logger.info("YouTube API client initialized")
+        except Exception as e:
+            raise ValueError(f"Failed to initialize YouTube API: {e}")
+        
+        # Educational content classification
         self.educational_keywords = {
             'primary': ['tutorial', 'course', 'learn', 'guide', 'how to', 'explained'],
             'secondary': ['fundamentals', 'basics', 'advanced', 'complete', 'step by step', 
@@ -52,8 +55,6 @@ class YouTubeDataCollector:
             'challenge', 'vs', 'beef', 'drama', 'exposed', 'clickbait', 'shocking'
         ]
         
-        # Duration categories for comprehensive analysis
-
         self.duration_categories = {
             'micro_learning': (0, 5),   
             'short_tutorial': (5, 15),    
@@ -61,35 +62,71 @@ class YouTubeDataCollector:
             'long_form': (45, 120),       
             'course_length': (120, 999)    
         }
-        with app.app_context():
-            self.platform=Platform.query.filter_by(name="YouTube").first()
-        if not self.platform:
-            self.platform=Platform(
-                name="YouTube",
-                base_url="https://www.youtube.com",
-                is_active=True
-            )
-            db.session.add(self.platform)
-            db.session.commit()
-            logger.info("Created youtube platform in database")
-
-    def search_educational_content(self,search_terms:List[str],max_results_per_term:int=10,include_all_durations:bool=True)->List[Dict[str,Any]]:
-        all_videos=[]
-        for term in search_terms:
-            logger.info("Searching comprehensively for:{term}")
-            if include_all_durations:
-                for duration_type in ['short','medium','long']:
-                    videos=self.search_by_duration(term,duration_type,max_results_per_term//3)
-            else:
-                videos=self.search_by_duration(term,'any',max_results_per_term)
-                all_videos.extend(videos)
-            time.sleep(2)
-
-        unique_videos=self._remove_duplicates_and_enhance(all_videos)
-        logger.info(f"Total unique videos collected:{len(unique_videos)}")
-        return unique_videos
+    
+    def collect_courses(self, search_terms: List[str] = None, max_results_per_term: int = 10, 
+                       include_all_durations: bool = True) -> List[Dict[str, Any]]:
+        """Collect course data from YouTube (implements BaseCollector abstract method)"""
         
-    def search_by_duration(self, search_term: str, duration: str, max_results: int) -> List[Dict[str, Any]]:
+        if search_terms is None:
+            search_terms = [
+                "python programming beginner",
+                "machine learning explained", 
+                "web development full course",
+                "sql database complete tutorial",
+                "excel advanced tutorial"
+            ]
+        
+        all_videos = []
+        
+        for term in search_terms:
+            logger.info(f"Searching comprehensively for: {term}")
+            
+            if include_all_durations:
+                for duration_type in ['short', 'medium', 'long']:
+                    videos = self._search_by_duration(term, duration_type, max_results_per_term // 3)
+                    all_videos.extend(videos)
+            else:
+                videos = self._search_by_duration(term, 'any', max_results_per_term)
+                all_videos.extend(videos)
+            
+            self._rate_limit()
+        
+        unique_videos = self._remove_duplicates_and_enhance(all_videos)
+        logger.info(f"Total unique videos collected: {len(unique_videos)}")
+        return unique_videos
+    
+    def collect_engagement_data(self, course_id: str, **kwargs) -> Dict[str, Any]:
+        """Collect engagement data for a specific YouTube video (implements BaseCollector abstract method)"""
+        try:
+            videos_response = self.youtube.videos().list(
+                part='statistics,contentDetails',
+                id=course_id
+            ).execute()
+            
+            if not videos_response.get('items'):
+                return {}
+            
+            video = videos_response['items'][0]
+            statistics = video.get('statistics', {})
+            
+            view_count = int(statistics.get('viewCount', 0))
+            like_count = int(statistics.get('likeCount', 0))
+            comment_count = int(statistics.get('commentCount', 0))
+            
+            engagement_rate = (like_count + comment_count) / max(view_count, 1) * 100
+            
+            return {
+                'views': view_count,
+                'likes': like_count,
+                'comments': comment_count,
+                'engagement_rate': round(engagement_rate, 4)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error collecting engagement data for {course_id}: {e}")
+            return {}
+    
+    def _search_by_duration(self, search_term: str, duration: str, max_results: int) -> List[Dict[str, Any]]:
         """Search for videos by duration category"""
         try:
             enhanced_query = f"{search_term} tutorial course guide complete"
@@ -126,7 +163,7 @@ class YouTubeDataCollector:
                 if video_data:
                     videos.append(video_data)
             
-            logger.info(f" Found {len(videos)} valid videos for '{search_term}' ({duration} duration)")
+            logger.info(f"Found {len(videos)} valid videos for '{search_term}' ({duration} duration)")
             return videos
             
         except HttpError as e:
@@ -139,6 +176,7 @@ class YouTubeDataCollector:
             return []
     
     def _parse_enhanced_video_data(self, video: Dict[str, Any], search_term: str, duration_filter: str) -> Optional[Dict[str, Any]]:
+        """Parse video data into standardized format"""
         try:
             snippet = video['snippet']
             statistics = video.get('statistics', {})
@@ -176,60 +214,56 @@ class YouTubeDataCollector:
             comments_per_minute = comment_count / max(duration_minutes, 1)
             
             duration_category = self._categorize_duration(duration_minutes)
-            
             channel_info = self._analyze_channel_educational_focus(snippet['channelTitle'], snippet['channelId'])
-            
             published_at = self._parse_datetime(snippet['publishedAt'])
-            
             complexity_score = self._estimate_content_complexity(title, description, duration_minutes)
             
+            # Return data in BaseCollector expected format
             return {
                 'title': title[:500],
                 'instructor': snippet['channelTitle'][:200],
                 'description': description[:2000],
                 'url': f"https://www.youtube.com/watch?v={video['id']}",
                 'thumbnail_url': snippet['thumbnails'].get('high', {}).get('url'),
-                
                 'duration_minutes': duration_minutes,
-                'duration_seconds': duration_seconds,
-                'duration_category': duration_category,
-                
+                'difficulty_level': self._estimate_difficulty_level(complexity_score),
                 'category': search_term,
-                'tags': tags[:15],  # More tags for better analysis
                 'language': snippet.get('defaultLanguage', 'en'),
+                'price': 0.0,
+                'currency': 'USD',
                 'is_free': True,
                 'published_at': published_at,
+                'tags': tags[:10] if tags else [],
                 
-                'educational_score': round(educational_score, 3),
-                'complexity_score': round(complexity_score, 3),
-                
-                'channel_id': snippet['channelId'],
-                'channel_educational_focus': channel_info['educational_focus'],
-                'estimated_channel_authority': channel_info['authority_score'],
-                
-                'view_count': view_count,
-                'like_count': like_count,
-                'comment_count': comment_count,
-                'engagement_rate': round(engagement_rate, 4),
-                'likes_per_minute': round(likes_per_minute, 2),
-                'comments_per_minute': round(comments_per_minute, 2),
-                
-                'topic_categories': topic_details.get('topicCategories', []),
-                
+                # Additional metadata for engagement metrics
                 'metadata': {
                     'video_id': video['id'],
                     'search_term': search_term,
                     'duration_filter_used': duration_filter,
                     'collection_date': datetime.utcnow().isoformat(),
-                    'api_version': 'v3_enhanced'
+                    'api_version': 'v3_enhanced',
+                    'educational_score': round(educational_score, 3),
+                    'complexity_score': round(complexity_score, 3),
+                    'duration_category': duration_category,
+                    'channel_id': snippet['channelId'],
+                    'channel_educational_focus': channel_info['educational_focus'],
+                    'estimated_channel_authority': channel_info['authority_score'],
+                    'view_count': view_count,
+                    'like_count': like_count,
+                    'comment_count': comment_count,
+                    'engagement_rate': round(engagement_rate, 4),
+                    'likes_per_minute': round(likes_per_minute, 2),
+                    'comments_per_minute': round(comments_per_minute, 2),
+                    'topic_categories': topic_details.get('topicCategories', [])
                 }
             }
             
         except Exception as e:
-            logger.error(f" Error parsing video data: {e}")
+            logger.error(f"Error parsing video data: {e}")
             return None
     
     def _parse_duration_enhanced(self, duration: str) -> Optional[tuple[float, int]]:
+        """Parse ISO 8601 duration to minutes and seconds"""
         if not duration or not duration.startswith('PT'):
             return None
         
@@ -257,6 +291,7 @@ class YouTubeDataCollector:
             return None
     
     def _calculate_educational_score(self, title: str, description: str, tags: List[str]) -> float:
+        """Calculate educational relevance score"""
         score = 0.0
         text_to_analyze = f"{title} {description} {' '.join(tags or [])}".lower()
         
@@ -281,15 +316,17 @@ class YouTubeDataCollector:
             if indicator in text_to_analyze:
                 score += 0.05
         
-        return max(0.0, min(1.0, score))  
+        return max(0.0, min(1.0, score))
     
     def _categorize_duration(self, minutes: float) -> str:
+        """Categorize video duration"""
         for category, (min_dur, max_dur) in self.duration_categories.items():
             if min_dur <= minutes < max_dur:
                 return category
-        return 'extended_course'  
+        return 'extended_course'
     
     def _analyze_channel_educational_focus(self, channel_title: str, channel_id: str) -> Dict[str, Any]:
+        """Analyze channel's educational focus"""
         channel_lower = channel_title.lower()
         
         educational_focus = 0.5  
@@ -342,7 +379,17 @@ class YouTubeDataCollector:
         
         return max(0.1, min(1.0, complexity))
     
+    def _estimate_difficulty_level(self, complexity_score: float) -> str:
+        """Convert complexity score to difficulty level"""
+        if complexity_score < 0.4:
+            return 'Beginner'
+        elif complexity_score < 0.7:
+            return 'Intermediate'
+        else:
+            return 'Advanced'
+    
     def _remove_duplicates_and_enhance(self, videos: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove duplicates and enhance data"""
         seen_urls = set()
         unique_videos = []
         
@@ -351,143 +398,106 @@ class YouTubeDataCollector:
                 seen_urls.add(video['url'])
                 unique_videos.append(video)
         
-        logger.info(f" Removed {len(videos) - len(unique_videos)} duplicate videos")
+        logger.info(f"Removed {len(videos) - len(unique_videos)} duplicate videos")
         return unique_videos
     
     def _parse_datetime(self, datetime_str: str) -> datetime:
+        """Parse ISO datetime string"""
         return datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
     
-    def save_to_database_enhanced(self, videos_data: List[Dict[str, Any]]) -> Dict[str, int]:
-        with app.app_context():
-            saved_count = 0
-            skipped_count = 0
-            updated_count = 0
+    def collect_and_save_with_metrics(self, search_terms: List[str] = None, max_results_per_term: int = 10) -> Dict[str, int]:
+        """High-level method to collect courses and save with engagement metrics"""
+        try:
+            # Step 1: Collect course data
+            courses_data = self.collect_courses(search_terms, max_results_per_term)
             
-            for video_data in videos_data:
+            if not courses_data:
+                logger.warning("No courses collected")
+                return {'saved': 0, 'metrics_saved': 0}
+            
+            # Step 2: Save courses using BaseCollector method
+            course_ids = self.save_courses(courses_data)
+            
+            # Step 3: Save engagement metrics for each course
+            metrics_saved = 0
+            for course_data, course_id in zip(courses_data, course_ids):
                 try:
-                    existing = Course.query.filter_by(url=video_data['url']).first()
+                    # Extract engagement metrics from metadata
+                    metadata = course_data.get('metadata', {})
                     
-                    if existing:
-                        self._update_existing_course_metrics(existing, video_data)
-                        updated_count += 1
-                        continue
+                    engagement_metrics = {
+                        'views': metadata.get('view_count', 0),
+                        'likes': metadata.get('like_count', 0),
+                        'comments': metadata.get('comment_count', 0),
+                        'engagement_rate': metadata.get('engagement_rate', 0),
+                        'likes_per_minute': metadata.get('likes_per_minute', 0),
+                        'comments_per_minute': metadata.get('comments_per_minute', 0),
+                        'educational_score': metadata.get('educational_score', 0),
+                        'complexity_score': metadata.get('complexity_score', 0)
+                    }
                     
-                    course = Course(
-                        platform_id=self.platform.id,
-                        title=video_data['title'],
-                        instructor=video_data['instructor'],
-                        description=video_data['description'],
-                        url=video_data['url'],
-                        thumbnail_url=video_data['thumbnail_url'],
-                        duration_minutes=video_data['duration_minutes'],
-                        category=video_data['category'],
-                        tags=','.join(video_data['tags']) if video_data['tags'] else None,
-                        language=video_data['language'],
-                        is_free=video_data['is_free'],
-                        published_at=video_data['published_at']
-                    )
-                    
-                    db.session.add(course)
-                    db.session.flush() 
-                    
-                    metrics = [
-                        EngagementMetric(course_id=course.id, metric_type='views', 
-                                       value=video_data['view_count'], collected_at=datetime.utcnow()),
-                        EngagementMetric(course_id=course.id, metric_type='likes', 
-                                       value=video_data['like_count'], collected_at=datetime.utcnow()),
-                        EngagementMetric(course_id=course.id, metric_type='comments', 
-                                       value=video_data['comment_count'], collected_at=datetime.utcnow()),
-                        EngagementMetric(course_id=course.id, metric_type='engagement_rate', 
-                                       value=video_data['engagement_rate'], collected_at=datetime.utcnow()),
-                        EngagementMetric(course_id=course.id, metric_type='likes_per_minute', 
-                                       value=video_data['likes_per_minute'], collected_at=datetime.utcnow()),
-                        EngagementMetric(course_id=course.id, metric_type='educational_score', 
-                                       value=video_data['educational_score'], collected_at=datetime.utcnow()),
-                        EngagementMetric(course_id=course.id, metric_type='complexity_score', 
-                                       value=video_data['complexity_score'], collected_at=datetime.utcnow()),
-                    ]
-                    
-                    for metric in metrics:
-                        db.session.add(metric)
-                    
-                    saved_count += 1
-                    
-                    if saved_count % 10 == 0:
-                        logger.info(f" Saved {saved_count} courses so far...")
+                    # Save metrics using BaseCollector method
+                    self.save_engagement_metrics(course_id, engagement_metrics)
+                    metrics_saved += 1
                     
                 except Exception as e:
-                    logger.error(f" Error saving course '{video_data.get('title', 'Unknown')}': {e}")
-                    db.session.rollback()
+                    logger.error(f"Error saving metrics for course {course_id}: {e}")
                     continue
             
-            try:
-                db.session.commit()
-                logger.info(f"Database operation completed!")
-                return {
-                    'saved': saved_count,
-                    'skipped': skipped_count,
-                    'updated': updated_count
-                }
-            except Exception as e:
-                logger.error(f" Database commit failed: {e}")
-                db.session.rollback()
-                return {'saved': 0, 'skipped': 0, 'updated': 0}
-    
-    def _update_existing_course_metrics(self, course, video_data):
-        try:
-            # Add new metric entries with current timestamp
-            new_metrics = [
-                EngagementMetric(course_id=course.id, metric_type='views', 
-                               value=video_data['view_count'], collected_at=datetime.utcnow()),
-                EngagementMetric(course_id=course.id, metric_type='likes', 
-                               value=video_data['like_count'], collected_at=datetime.utcnow()),
-                EngagementMetric(course_id=course.id, metric_type='engagement_rate', 
-                               value=video_data['engagement_rate'], collected_at=datetime.utcnow()),
-            ]
+            logger.info(f"Successfully saved {len(course_ids)} courses and {metrics_saved} metric sets")
             
-            for metric in new_metrics:
-                db.session.add(metric)
-                
+            return {
+                'saved': len(course_ids),
+                'metrics_saved': metrics_saved
+            }
+            
         except Exception as e:
-            logger.error(f" Error updating metrics for course {course.id}: {e}")
-    
+            logger.error(f"Error in collect_and_save_with_metrics: {e}")
+            return {'saved': 0, 'metrics_saved': 0}
+
 
 def main():
-    print(" Enhanced YouTube Educational Content Collection Starting...")
-    print("="*70)
+    """Main execution function"""
+    print("Enhanced YouTube Educational Content Collection Starting...")
+    print("=" * 70)
+    
     EDUCATIONAL_SEARCH_TERMS = [
-    "python programming beginner",
-    "machine learning explained",
-    "web development full course",
-    "sql database complete tutorial",
-    "excel advanced tutorial",
-    "digital marketing complete course",
-    "project management fundamentals",
-    "photoshop complete tutorial",
-    "calculus step by step",
-    "statistics explained simply"
-]
-
+        "python programming beginner",
+        "machine learning explained",
+        "web development full course",
+        "sql database complete tutorial",
+        "excel advanced tutorial",
+        "digital marketing complete course",
+        "project management fundamentals",
+        "photoshop complete tutorial",
+        "calculus step by step",
+        "statistics explained simply"
+    ]
+    
     try:
-        collector = YouTubeDataCollector()
+        collector = YouTubeDataCollector(rate_limit_delay=2.0)
         
-        videos = collector.search_educational_content(
+        # Use the new unified method
+        results = collector.collect_and_save_with_metrics(
             EDUCATIONAL_SEARCH_TERMS, 
-            max_results_per_term=10,  
-            include_all_durations=True
+            max_results_per_term=8
         )
         
-        if not videos:
-            print(" No educational videos found")
+        print(f"✅ Collection completed successfully!")
+        print(f"📚 Courses saved: {results['saved']}")
+        print(f"📊 Metric sets saved: {results['metrics_saved']}")
+        
+        if results['saved'] > 0:
+            print("\n🎯 Next steps:")
+            print("1. Run analytics on your collected data")
+            print("2. Build your Streamlit dashboard")
+            print("3. Implement statistical analysis features")
+        else:
+            print("❌ No data was collected. Check your API key and network connection.")
             return 1
-        
-        print(f" Collected {len(videos)} unique educational videos")
-        
-        print(" Saving to database with enhanced analytics...")
-        results = collector.save_to_database_enhanced(videos)
             
     except Exception as e:
-        logger.error(f" Enhanced collection failed: {e}")
+        logger.error(f"Enhanced collection failed: {e}")
         return 1
     
     return 0

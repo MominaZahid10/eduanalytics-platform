@@ -1,15 +1,16 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env
 load_dotenv()
 print("Loaded DB URL:", os.getenv("DATABASE_URL"))
 class Config:
-    # Common config
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")
     YOUTUBE_API_KEY=os.getenv("YOUTUBE_API_KEY")
+    CLIENT_ID=os.getenv("client_id")
+    CLIENT_SECRET=os.getenv("client_secret")
+    USER_AGENT=os.getenv("user_agent")
     DEBUG = False
 
 class DevelopmentConfig(Config):
@@ -22,7 +23,7 @@ class ProductionConfig(Config):
     DEBUG = False
 
 class TestingConfig(Config):
-    TESTING = True  # ← Typo fixed: 'Testing' → 'TESTING'
+    TESTING = True  
     SQLALCHEMY_DATABASE_URI =os.getenv("DATABASE_URL")
 
 
