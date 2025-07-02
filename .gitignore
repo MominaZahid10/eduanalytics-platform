@@ -42,6 +42,7 @@ Thumbs.db
 
 # --- API Keys or Secrets ---
 config/secrets.yaml
+LICENSE
 
 # --- Docker ---
 *.pid
