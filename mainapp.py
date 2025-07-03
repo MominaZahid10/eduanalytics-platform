@@ -4,12 +4,14 @@ from datetime import datetime
 import os
 from config import config_by_name
 from flask_migrate import Migrate
+from datacleaning import run_comprehensive_enhancement
+from extensions import db
 
 
 config_name=os.getenv('FLASK_ENV','development')
 app=Flask(__name__)
 app.config.from_object(config_by_name[config_name])
-db=SQLAlchemy(app)
+db.init_app(app)
 migrate = Migrate(app, db)
 
 class Platform(db.Model):
@@ -70,8 +72,14 @@ def create_tables():
         db.create_all()
 
 if __name__ == '__main__':
-    print("Setting up EduAnalytics...")
-    create_tables()
-    print("\n Tables created. Ready to start your Flask app.")
-    print(" Visit http://localhost:5000")
-    app.run(debug=app.config['DEBUG'])
+     print("Setting up EduAnalytics...")
+    
+     create_tables()
+    
+     print("Running data enhancement pipeline...")
+     enhanced_data, quality = run_comprehensive_enhancement(app)
+    
+     print("\nTables created and enhancement completed.")
+     print(f"Processed {len(enhanced_data)} courses with quality score: {quality['quality_scores']['overall']:.3f}")
+     print("Visit http://localhost:5000")
+     app.run(debug=app.config['DEBUG'])
