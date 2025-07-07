@@ -345,6 +345,54 @@ st.markdown("""
             grid-template-columns: 1fr;
         }
     }
+            
+    .recommendation-card {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-top: 2rem;
+    color: #0c4a6e;
+    font-family: 'Inter', sans-serif;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.recommendation-card .rec-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.recommendation-card .rec-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.recommendation-card .rec-item {
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.recommendation-card .rec-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #0369a1;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.recommendation-card .rec-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0c4a6e;
+}
+
+.recommendation-card .rec-desc {
+    font-size: 0.85rem;
+    color: #164e63;
+}
 </style>
 """, unsafe_allow_html=True)
 
