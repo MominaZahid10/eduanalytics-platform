@@ -7,76 +7,85 @@ except ImportError:
     print("Error: Could not import Flask app and models.")
     sys.exit(1)
 
+from datetime import datetime
+
 def setup_database():
     with app.app_context():
         try:
-          db.create_all(
-          )
-          platforms_data=[
-              {
-                  "name": "YouTube",
-                  "base_url":"https://www.youtube.com",
-                  "is_active":False,
-                  "description":"World's largest video sharing platform with educational content"
-              },
-              {
+            db.create_all()
+
+            platforms_data = [
+                {
+                    "name": "YouTube",
+                    "base_url": "https://www.youtube.com",
+                    "is_active": True,
+                    "description": "World's largest video sharing platform with educational content"
+                },
+                {
                     "name": "Coursera",
                     "base_url": "https://www.coursera.org",
-                    "is_active": False,
+                    "is_active": True,
                     "description": "Online courses from top universities and companies"
                 },
                 {
                     "name": "Khan Academy",
                     "base_url": "https://www.khanacademy.org",
-                    "is_active": False,
+                    "is_active": True,
                     "description": "Free online courses, lessons and practice"
                 },
                 {
-                     "name": "Reddit",
-                     "base_url": "https://www.reddit.com",
-                     "is_active": False,
-                     "description": "Community-driven discussions and course recommendations"
-}
+                    "name": "Reddit",
+                    "base_url": "https://www.reddit.com",
+                    "is_active": True,
+                    "description": "Community-driven discussions and course recommendations"
+                }
+            ]
 
-          ]
-          added_count = 0
-          for platform_info in platforms_data:
+            added_count = 0
+            for platform_info in platforms_data:
                 existing = Platform.query.filter_by(name=platform_info["name"]).first()
-                
+
                 if not existing:
                     platform = Platform(
                         name=platform_info["name"],
                         base_url=platform_info["base_url"],
                         is_active=platform_info["is_active"]
                     )
-                    
                     if hasattr(Platform, 'description'):
                         platform.description = platform_info["description"]
-                    
                     if hasattr(Platform, 'created_at'):
                         platform.created_at = datetime.utcnow()
-                    
                     db.session.add(platform)
                     added_count += 1
-                    print(f" Added platform: {platform_info['name']}")
+                    print(f"✅ Added platform: {platform_info['name']}")
                 else:
-                    print(f" Platform already exists: {platform_info['name']}")
-            
-          db.session.commit()
-            
-          print(f" Database setup complete!")
-          print(f"Added {added_count} new platforms")
-            
-          total_platforms = Platform.query.count()
-          active_platforms = Platform.query.filter_by(is_active=True).count()
-            
-          print(f" Total platforms in database: {total_platforms}")
-          print(f" Active platforms: {active_platforms}")
-            
-          return True
-            
+                    updated = False
+                    if not existing.is_active:
+                        existing.is_active = True
+                        updated = True
+                    if hasattr(existing, 'description') and existing.description != platform_info["description"]:
+                        existing.description = platform_info["description"]
+                        updated = True
+                    if updated:
+                        print(f"🛠️ Updated platform: {platform_info['name']}")
+                    else:
+                        print(f"ℹ️ Platform already exists: {platform_info['name']}")
+
+            db.session.commit()
+
+            print("✅ Database setup complete!")
+            print(f"➕ Added {added_count} new platforms")
+
+            total_platforms = Platform.query.count()
+            active_platforms = Platform.query.filter_by(is_active=True).count()
+
+            print(f"📊 Total platforms in database: {total_platforms}")
+            print(f"✅ Active platforms: {active_platforms}")
+
+            return True
+
         except Exception as e:
-            print(f" Database setup failed: {e}")
+            print(f"❌ Database setup failed: {e}")
             db.session.rollback()
             return False
 
