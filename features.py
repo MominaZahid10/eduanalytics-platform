@@ -195,6 +195,7 @@ class LearningIntelligenceEngine:
         
         return normalized_df
 
+    
     def calculate_completion_rate_enhanced(self, df):
         """Enhanced completion rate calculation with multiple strategies"""
         completion_rates = []
