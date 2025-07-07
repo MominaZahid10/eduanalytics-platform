@@ -589,38 +589,60 @@ class AdvancedEduDataQuality:
         for field, stats in improvements.items():
             self.logger.info(f"{field}: {stats['original']:.1%} → {stats['improved']:.1%} (+{stats['improvement']:.1%})")
     def create_advanced_engagement_metrics(self):
-        if not hasattr(self, 'engagement_pivot') or len(self.engagement_pivot) == 0:
-            self.logger.warning("No engagement data available for advanced metrics")
-            return pd.DataFrame()
-        enhanced_engagement = self.engagement_pivot.copy()
-        if 'views' in enhanced_engagement.columns:
-            enhanced_engagement['engagement_rate'] = (
-                enhanced_engagement.get('likes', 0) + 
-                enhanced_engagement.get('comments', 0)
-            ) / enhanced_engagement['views'].replace(0, 1)
-        metrics = ['views', 'likes', 'comments', 'enrollments']
-        weights = [0.4, 0.3, 0.2, 0.1]
-        enhanced_engagement['engagement_score'] = 0
-        for metric, weight in zip(metrics, weights):
-            if metric in enhanced_engagement.columns:
-                enhanced_engagement['engagement_score'] += weight * enhanced_engagement[metric]
-        if hasattr(self, 'courses_df'):
-            course_platform = self.courses_df[['course_id', 'platform']].set_index('course_id')
+     if not hasattr(self, 'engagement_pivot') or len(self.engagement_pivot) == 0:
+        self.logger.warning("No engagement data available for advanced metrics")
+        return pd.DataFrame()
+
+     enhanced_engagement = self.engagement_pivot.copy()
+
+     # Compute engagement rate if views are available
+     if 'views' in enhanced_engagement.columns:
+        enhanced_engagement['engagement_rate'] = (
+            enhanced_engagement.get('likes', 0) +
+            enhanced_engagement.get('comments', 0)
+        ) / enhanced_engagement['views'].replace(0, 1)
+
+     # Weighted engagement score
+     metrics = ['views', 'likes', 'comments', 'enrollments']
+     weights = [0.4, 0.3, 0.2, 0.1]
+     enhanced_engagement['engagement_score'] = 0
+     for metric, weight in zip(metrics, weights):
+        if metric in enhanced_engagement.columns:
+            enhanced_engagement['engagement_score'] += weight * enhanced_engagement[metric]
+
+     # Normalize engagement scores per platform if course data is available
+     if hasattr(self, 'courses_df'):
+        course_platform = self.courses_df[['course_id', 'platform']].set_index('course_id')
+        if course_platform.empty:
+            self.logger.warning("Course-platform mapping is empty. Skipping normalization.")
+        else:
             enhanced_engagement = enhanced_engagement.join(course_platform, on='course_id')
-            for platform in enhanced_engagement['platform'].dropna().unique():
+            platforms = enhanced_engagement['platform'].dropna().unique()
+            self.logger.info(f"Platforms found: {platforms}")
+            for platform in platforms:
                 platform_mask = enhanced_engagement['platform'] == platform
                 max_score = enhanced_engagement.loc[platform_mask, 'engagement_score'].max()
+                self.logger.info(f"Max engagement score for platform '{platform}': {max_score}")
                 if max_score > 0:
                     enhanced_engagement.loc[platform_mask, 'engagement_score_normalized'] = (
                         enhanced_engagement.loc[platform_mask, 'engagement_score'] / max_score
                     )
-        enhanced_engagement['engagement_category'] = pd.cut(
-            enhanced_engagement['engagement_score_normalized'].fillna(0),
-            bins=[0, 0.25, 0.5, 0.75, 1.0],
-            labels=['Low', 'Medium', 'High', 'Very High']
-        )
-        self.enhanced_engagement = enhanced_engagement
-        return enhanced_engagement
+    
+     # Ensure the column exists before using it
+     if 'engagement_score_normalized' not in enhanced_engagement.columns:
+        self.logger.warning("'engagement_score_normalized' not found. Filling with zeros.")
+        enhanced_engagement['engagement_score_normalized'] = 0
+
+     # Assign category based on normalized score
+     enhanced_engagement['engagement_category'] = pd.cut(
+         enhanced_engagement['engagement_score_normalized'].fillna(0),
+        bins=[0, 0.25, 0.5, 0.75, 1.0],
+        labels=['Low', 'Medium', 'High', 'Very High']
+    )
+
+     self.enhanced_engagement = enhanced_engagement
+     return enhanced_engagement
+
     def comprehensive_data_enhancement(self):
      self.logger.info("Starting comprehensive data enhancement...")
      self._load_enhanced_data()
