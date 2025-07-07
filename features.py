@@ -1,51 +1,54 @@
-from mainapp import app, Course, EngagementMetric
+from mainapp import app, Course, EngagementMetric, db
 from datacleaning import AdvancedEduDataQuality, run_comprehensive_enhancement
 import pandas as pd
 import numpy as np
 from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu
 from lifelines import KaplanMeierFitter, CoxPHFitter
-from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
-from sqlalchemy import text
+from sqlalchemy import text, create_engine
 import logging
 import warnings
 from datetime import datetime, timedelta
 import networkx as nx
 from collections import defaultdict, Counter
-from sqlalchemy import create_engine
+from flask import current_app
+import json
+from contextlib import contextmanager
 
 warnings.filterwarnings('ignore')
 
 class LearningIntelligenceEngine:
     def __init__(self, db_uri=None):
-        from config import config_by_name
-        self.db_uri = db_uri or config_by_name.get("development").SQLALCHEMY_DATABASE_URI
-        if not self.db_uri:
-            raise ValueError("❌ Database URI is not defined. Please set it in config or pass it to the class.")
-        self.db_engine = create_engine(self.db_uri)
-        self.engine = self.db_engine
+        """Initialize the Learning Intelligence Engine with Flask app context support"""
+        self.db_uri = db_uri
+        self.db_engine = None
         self.courses_df = None
         self.engagement_df = None
         self.enhanced_df = None
         self.completion_df = None
+        self._app_context = None
+        
+        # Setup logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+        
+        # Platform-specific configurations
         self.platform_metrics = {
             'YouTube': {
                 'primary_engagement': 'views',
                 'secondary_engagement': 'likes',
-                'engagement_divisor': 1000,  # Scale down large numbers
-                'completion_base': 0.15,  # Lower base completion for YouTube
+                'engagement_divisor': 1000,
+                'completion_base': 0.15,
                 'rating_source': 'likes_ratio'
             },
             'Coursera': {
                 'primary_engagement': 'enrollments',
                 'secondary_engagement': 'rating',
                 'engagement_divisor': 1,
-                'completion_base': 0.70,  # Higher base for structured courses
+                'completion_base': 0.70,
                 'rating_source': 'direct_rating'
             },
             'Khan Academy': {
@@ -59,33 +62,111 @@ class LearningIntelligenceEngine:
                 'primary_engagement': 'upvotes',
                 'secondary_engagement': 'comments',
                 'engagement_divisor': 10,
-                'completion_base': 0.25,  # Lower for discussion-based
+                'completion_base': 0.25,
                 'rating_source': 'upvote_ratio'
-            }   
+            }
         }
+        
+        # Initialize database connection
+        self._initialize_database()
+    
+    def _initialize_database(self):
+        """Initialize database connection with Flask app context"""
+        try:
+            if self.db_uri:
+                self.db_engine = create_engine(self.db_uri)
+                self.logger.info("Database engine initialized with provided URI")
+            else:
+                # Try to get from Flask app context
+                self._ensure_app_context()
+                if current_app:
+                    self.db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI')
+                    if self.db_uri:
+                        self.db_engine = create_engine(self.db_uri)
+                        self.logger.info("Database engine initialized from Flask app context")
+                    else:
+                        raise ValueError("No database URI found in Flask app configuration")
+                else:
+                    raise ValueError("No Flask app context available and no db_uri provided")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize database: {e}")
+            raise
+    
+    def _ensure_app_context(self):
+        """Ensure Flask app context is available"""
+        try:
+            # Check if we're already in an app context
+            if current_app._get_current_object():
+                return
+        except RuntimeError:
+            # Not in app context, create one
+            self._app_context = app.app_context()
+            self._app_context.push()
+            self.logger.info("Flask app context created and pushed")
+    
+    def __enter__(self):
+        """Context manager entry"""
+        self._ensure_app_context()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit"""
+        if self._app_context:
+            self._app_context.pop()
+            self._app_context = None
+    
+    @contextmanager
+    def app_context(self):
+        """Context manager for Flask app context"""
+        context_created = False
+        try:
+            current_app._get_current_object()
+        except RuntimeError:
+            self._app_context = app.app_context()
+            self._app_context.push()
+            context_created = True
+        
+        try:
+            yield
+        finally:
+            if context_created and self._app_context:
+                self._app_context.pop()
+                self._app_context = None
+
     def normalize_engagement_scores(self, df):
         """Normalize engagement scores across platforms for fair comparison"""
         normalized_df = df.copy()
+        
         for platform in df['platform'].unique():
             if pd.isna(platform):
                 continue
+            
             platform_mask = df['platform'] == platform
             platform_data = df[platform_mask]
+            
             if len(platform_data) == 0:
                 continue
+            
             platform_config = self.platform_metrics.get(platform, self.platform_metrics['Coursera'])
             engagement_values = []
+            
             for _, row in platform_data.iterrows():
                 try:
                     primary_metric = platform_config['primary_engagement']
                     secondary_metric = platform_config['secondary_engagement']
                     divisor = platform_config['engagement_divisor']
+                    
+                    # Calculate primary engagement value
                     primary_value = 0
                     if primary_metric in row.index and pd.notna(row[primary_metric]):
                         primary_value = float(row[primary_metric]) / divisor
+                    
+                    # Calculate secondary engagement value
                     secondary_value = 0
                     if secondary_metric in row.index and pd.notna(row[secondary_metric]):
                         secondary_value = float(row[secondary_metric])
+                    
+                    # Platform-specific engagement calculation
                     if platform == 'YouTube':
                         engagement_score = np.log1p(primary_value) * 0.7 + np.log1p(secondary_value) * 0.3
                     elif platform == 'Khan Academy':
@@ -94,41 +175,59 @@ class LearningIntelligenceEngine:
                         engagement_score = np.log1p(primary_value) * 0.6 + np.log1p(secondary_value) * 0.4
                     else:
                         engagement_score = np.log1p(primary_value) * 0.6 + (secondary_value / 5.0) * 0.4
+                    
                     engagement_values.append(engagement_score)
+                    
                 except Exception as e:
                     self.logger.warning(f"Error calculating engagement for {platform}: {e}")
                     engagement_values.append(0.5)  # Default value
+            
             if engagement_values:
                 engagement_array = np.array(engagement_values)
                 if engagement_array.max() > engagement_array.min():
                     normalized_values = (engagement_array - engagement_array.min()) / (engagement_array.max() - engagement_array.min())
                 else:
                     normalized_values = np.full_like(engagement_array, 0.5)
-                normalized_values = normalized_values * 0.8 + 0.1  # Scale to 0.1-0.9 range
+                
+                # Scale to 0.1-0.9 range
+                normalized_values = normalized_values * 0.8 + 0.1
                 normalized_df.loc[platform_mask, 'engagement_score_normalized'] = normalized_values
+        
         return normalized_df
+
     def calculate_completion_rate_enhanced(self, df):
         """Enhanced completion rate calculation with multiple strategies"""
         completion_rates = []
+        
         for idx, row in df.iterrows():
             try:
                 platform = row.get('platform', 'Unknown')
                 platform_config = self.platform_metrics.get(platform, self.platform_metrics['Coursera'])
+                
+                # Check if completion rate already exists
                 if 'completion_rate' in row.index and pd.notna(row['completion_rate']):
                     existing_rate = float(row['completion_rate'])
                     if 0 <= existing_rate <= 1:
                         completion_rates.append(existing_rate)
                         continue
+                
+                # Calculate base completion rate
                 base_completion = platform_config['completion_base']
+                
+                # Engagement boost
                 engagement_boost = 0
                 if 'engagement_score_normalized' in row.index and pd.notna(row['engagement_score_normalized']):
                     engagement_score = float(row['engagement_score_normalized'])
                     engagement_boost = (engagement_score - 0.5) * 0.3
+                
+                # Rating boost
                 rating_boost = 0
                 if 'rating' in row.index and pd.notna(row['rating']):
                     rating = float(row['rating'])
                     if rating > 0:
                         rating_boost = ((rating - 3.0) / 2.0) * 0.15
+                
+                # Duration adjustment
                 duration_adjustment = 0
                 if 'duration_minutes' in row.index and pd.notna(row['duration_minutes']):
                     duration = float(row['duration_minutes'])
@@ -149,6 +248,8 @@ class LearningIntelligenceEngine:
                             duration_adjustment = -0.15
                         elif duration > 180:  # 3+ hours
                             duration_adjustment = -0.05
+                
+                # Difficulty adjustment
                 difficulty_adjustment = 0
                 if 'difficulty_level' in row.index and pd.notna(row['difficulty_level']):
                     difficulty = row['difficulty_level']
@@ -156,30 +257,38 @@ class LearningIntelligenceEngine:
                         difficulty_adjustment = 0.1
                     elif difficulty == 'Advanced':
                         difficulty_adjustment = -0.05
+                
+                # Price adjustment
                 price_adjustment = 0
                 if 'is_free' in row.index and pd.notna(row['is_free']):
                     if row['is_free']:
                         price_adjustment = -0.02  # Free courses often have lower completion
                     else:
                         price_adjustment = 0.05  # Paid courses have higher completion
+                
+                # Calculate final completion rate
                 final_completion = (base_completion + engagement_boost + rating_boost + 
                                   duration_adjustment + difficulty_adjustment + price_adjustment)
+                
+                # Clip to reasonable range
                 final_completion = np.clip(final_completion, 0.05, 0.95)
                 completion_rates.append(final_completion)
+                
             except Exception as e:
                 self.logger.warning(f"Error calculating completion rate for row {idx}: {e}")
                 completion_rates.append(0.5)  # Default fallback
+        
         return np.array(completion_rates)
-    
+
     def generate_khan_academy_engagement(self, courses_df):
         """Generate synthetic engagement for Khan Academy based on educational metrics"""
         khan_courses = courses_df[courses_df['platform'] == 'Khan Academy'].copy()
         
         if len(khan_courses) == 0:
-            print("No Khan Academy courses found for synthetic engagement generation")
+            self.logger.info("No Khan Academy courses found for synthetic engagement generation")
             return pd.DataFrame()
         
-        print(f"Generating synthetic engagement for {len(khan_courses)} Khan Academy courses...")
+        self.logger.info(f"Generating synthetic engagement for {len(khan_courses)} Khan Academy courses...")
         
         synthetic_engagement = []
         
@@ -246,7 +355,7 @@ class LearningIntelligenceEngine:
                 'engagement_score': final_engagement,
                 'engagement_score_normalized': final_engagement,
                 'rating': min(5.0, 4.0 + (final_engagement * 0.9)),
-                'views': int(duration_minutes * 150 + 1000),  # Estimated views
+                'views': int(duration_minutes * 150 + 1000),
                 'likes': 0,
                 'comments': 0,
                 'enrollments': int(duration_minutes * 80 + 800),
@@ -268,7 +377,7 @@ class LearningIntelligenceEngine:
             synthetic_engagement.append(engagement_data)
         
         synthetic_df = pd.DataFrame(synthetic_engagement)
-        print(f"✅ Generated synthetic engagement for {len(synthetic_df)} Khan Academy courses")
+        self.logger.info(f"✅ Generated synthetic engagement for {len(synthetic_df)} Khan Academy courses")
         
         return synthetic_df
     
@@ -305,55 +414,61 @@ class LearningIntelligenceEngine:
     def load_enhanced_data(self):
         """Load and enhance data with improved processing"""
         try:
-            # Load base data
-            self.courses_df = pd.read_sql_query("SELECT * FROM courses_enhanced_analysis", self.db_engine)
-            self.engagement_df = pd.read_sql_query("SELECT * FROM engagement_enhanced_analysis", self.db_engine)
-            
-            print("=== ENHANCED DATA LOADING ===")
-            print(f"Courses loaded: {self.courses_df.shape}")
-            print(f"Engagement loaded: {self.engagement_df.shape}")
-            
-            # Fix platform column issues
-            self._fix_platform_columns()
-            
-            # Generate Khan Academy synthetic data
-            khan_engagement = self.generate_khan_academy_engagement(self.courses_df)
-            
-            # Combine engagement data
-            if len(khan_engagement) > 0:
-                self.engagement_df = self._combine_engagement_data(self.engagement_df, khan_engagement)
-            
-            # Normalize engagement scores across platforms
-            print("🔄 Normalizing engagement scores across platforms...")
-            self.engagement_df = self.normalize_engagement_scores(self.engagement_df)
-            
-            # Calculate enhanced completion rates
-            print("🔄 Calculating enhanced completion rates...")
-            completion_rates = self.calculate_completion_rate_enhanced(self.engagement_df)
-            self.engagement_df['completion_rate'] = completion_rates
-            
-            # Create merged datasets
-            self.completion_df = pd.merge(
-                self.courses_df, self.engagement_df, 
-                on='course_id', how='inner', suffixes=('_course', '_engagement')
-            )
-            
-            self.enhanced_df = pd.merge(
-                self.courses_df, self.engagement_df, 
-                on='course_id', how='left', suffixes=('_course', '_engagement')
-            )
-            
-            # Fix platform columns after merge
-            self._fix_merged_platform_columns()
-            
-            # Data quality summary
-            self._print_data_quality_summary()
-            
-            return self.enhanced_df, self.completion_df
-            
+            with self.app_context():
+                # Load base data from database
+                self.courses_df = pd.read_sql_query(
+                    "SELECT * FROM courses_enhanced_analysis", 
+                    self.db_engine
+                )
+                self.engagement_df = pd.read_sql_query(
+                    "SELECT * FROM engagement_enhanced_analysis", 
+                    self.db_engine
+                )
+                
+                self.logger.info("=== ENHANCED DATA LOADING ===")
+                self.logger.info(f"Courses loaded: {self.courses_df.shape}")
+                self.logger.info(f"Engagement loaded: {self.engagement_df.shape}")
+                
+                # Fix platform column issues
+                self._fix_platform_columns()
+                
+                # Generate Khan Academy synthetic data
+                khan_engagement = self.generate_khan_academy_engagement(self.courses_df)
+                
+                # Combine engagement data
+                if len(khan_engagement) > 0:
+                    self.engagement_df = self._combine_engagement_data(self.engagement_df, khan_engagement)
+                
+                # Normalize engagement scores across platforms
+                self.logger.info("🔄 Normalizing engagement scores across platforms...")
+                self.engagement_df = self.normalize_engagement_scores(self.engagement_df)
+                
+                # Calculate enhanced completion rates
+                self.logger.info("🔄 Calculating enhanced completion rates...")
+                completion_rates = self.calculate_completion_rate_enhanced(self.engagement_df)
+                self.engagement_df['completion_rate'] = completion_rates
+                
+                # Create merged datasets
+                self.completion_df = pd.merge(
+                    self.courses_df, self.engagement_df, 
+                    on='course_id', how='inner', suffixes=('_course', '_engagement')
+                )
+                
+                self.enhanced_df = pd.merge(
+                    self.courses_df, self.engagement_df, 
+                    on='course_id', how='left', suffixes=('_course', '_engagement')
+                )
+                
+                # Fix platform columns after merge
+                self._fix_merged_platform_columns()
+                
+                # Data quality summary
+                self._print_data_quality_summary()
+                
+                return self.enhanced_df, self.completion_df
+                
         except Exception as e:
-            print(f"❌ Error in enhanced data loading: {e}")
-            self.logger.error(f"Error loading enhanced data: {e}")
+            self.logger.error(f"❌ Error in enhanced data loading: {e}")
             import traceback
             traceback.print_exc()
             return None, None
@@ -369,13 +484,13 @@ class LearningIntelligenceEngine:
                 platform_candidates = [col for col in df.columns if 'platform' in col.lower()]
                 if platform_candidates:
                     df['platform'] = df[platform_candidates[0]]
-                    print(f"✅ Fixed platform column in {df_name}")
+                    self.logger.info(f"✅ Fixed platform column in {df_name}")
             
             # Clean up duplicate columns
             platform_cols = [col for col in df.columns if col.startswith('platform') and col != 'platform']
             if platform_cols:
                 df.drop(columns=platform_cols, inplace=True)
-                print(f"Dropped duplicate platform columns in {df_name}: {platform_cols}")
+                self.logger.info(f"Dropped duplicate platform columns in {df_name}: {platform_cols}")
     
     def _combine_engagement_data(self, original_df, synthetic_df):
         """Combine original and synthetic engagement data"""
@@ -402,7 +517,7 @@ class LearningIntelligenceEngine:
         
         # Combine datasets
         combined_df = pd.concat([original_df, synthetic_df], ignore_index=True)
-        print(f"✅ Combined engagement data: {len(original_df)} + {len(synthetic_df)} = {len(combined_df)}")
+        self.logger.info(f"✅ Combined engagement data: {len(original_df)} + {len(synthetic_df)} = {len(combined_df)}")
         
         return combined_df
     
@@ -415,40 +530,27 @@ class LearningIntelligenceEngine:
             if 'platform_course' in df.columns and 'platform_engagement' in df.columns:
                 df['platform'] = df['platform_course'].fillna(df['platform_engagement'])
                 df.drop(columns=['platform_course', 'platform_engagement'], inplace=True)
-                print(f"✅ Fixed platform columns in {df_name}")
+                self.logger.info(f"✅ Fixed platform columns in {df_name}")
     
     def _print_data_quality_summary(self):
         """Print comprehensive data quality summary"""
-        print("\n=== DATA QUALITY SUMMARY ===")
+        self.logger.info("\n=== DATA QUALITY SUMMARY ===")
         
         if self.engagement_df is not None:
-            print(f"Final engagement data shape: {self.engagement_df.shape}")
+            self.logger.info(f"Final engagement data shape: {self.engagement_df.shape}")
             
             # Platform distribution
             platform_counts = self.engagement_df['platform'].value_counts()
-            print(f"Platform distribution:\n{platform_counts}")
+            self.logger.info(f"Platform distribution:\n{platform_counts}")
             
             # Completion rate statistics
             completion_stats = self.engagement_df['completion_rate'].describe()
-            print(f"\nCompletion rate statistics:\n{completion_stats}")
+            self.logger.info(f"\nCompletion rate statistics:\n{completion_stats}")
             
             # Engagement score statistics
             if 'engagement_score_normalized' in self.engagement_df.columns:
                 engagement_stats = self.engagement_df['engagement_score_normalized'].describe()
-                print(f"\nNormalized engagement statistics:\n{engagement_stats}")
-            
-            # Missing data summary
-            missing_data = self.engagement_df.isnull().sum()
-            if missing_data.sum() > 0:
-                print(f"\nMissing data summary:\n{missing_data[missing_data > 0]}")
-            
-            # Platform-specific averages
-            platform_summary = self.engagement_df.groupby('platform').agg({
-                'engagement_score_normalized': 'mean',
-                'completion_rate': 'mean',
-                'rating': 'mean'
-            }).round(3)
-            print(f"\nPlatform performance summary:\n{platform_summary}")
+                self.logger.info(f"\nNormalized engagement statistics:\n{engagement_stats}")
     
     def advanced_completion_analysis(self):
         """Advanced completion rate analysis"""
@@ -583,7 +685,7 @@ class LearningIntelligenceEngine:
             self.logger.error(f"Error calculating data quality metrics: {e}")
             return {}
     
-    # Include all the original methods with improvements
+    # Include all the original methods with improvementsf
     def learning_velocity_profiling(self):
         """Enhanced learning velocity profiling"""
         try:
@@ -628,70 +730,6 @@ class LearningIntelligenceEngine:
             self.logger.error(f"Error in learning velocity profiling: {e}")
             return {}
         
-    def engagement_pattern_mining(self):
-        try:
-            engagement_features = self.engagement_df.copy()
-            numeric_cols = ['views', 'likes', 'comments', 'enrollments', 'engagement_score']
-            available_cols = [col for col in numeric_cols if col in engagement_features.columns]
-            
-            if len(available_cols) < 2:
-                self.logger.warning("Insufficient engagement metrics for pattern mining")
-                return {}
-            feature_data = engagement_features[available_cols].fillna(0)
-            scaler = StandardScaler()
-            scaled_features = scaler.fit_transform(feature_data)
-            silhouette_scores = []
-            K_range = range(2, min(8, len(scaled_features)//10))
-            
-            for k in K_range:
-                kmeans = KMeans(n_clusters=k, random_state=42)
-                cluster_labels = kmeans.fit_predict(scaled_features)
-                silhouette_avg = silhouette_score(scaled_features, cluster_labels)
-                silhouette_scores.append(silhouette_avg)
-            if silhouette_scores:
-                optimal_k = K_range[np.argmax(silhouette_scores)]
-            else:
-                optimal_k = 4
-            kmeans = KMeans(n_clusters=optimal_k, random_state=42)
-            cluster_labels = kmeans.fit_predict(scaled_features)
-            engagement_features['cluster'] = cluster_labels
-            cluster_analysis = {}
-            
-            for cluster_id in range(optimal_k):
-                cluster_data = engagement_features[engagement_features['cluster'] == cluster_id]
-                
-                cluster_stats = {}
-                for col in available_cols:
-                    cluster_stats[col] = {
-                        'mean': cluster_data[col].mean(),
-                        'median': cluster_data[col].median(),
-                        'std': cluster_data[col].std(),
-                        'count': len(cluster_data)
-                    }
-                platform_dist = cluster_data['platform'].value_counts().to_dict()
-                
-                cluster_analysis[f'cluster_{cluster_id}'] = {
-                    'size': len(cluster_data),
-                    'percentage': len(cluster_data) / len(engagement_features) * 100,
-                    'characteristics': cluster_stats,
-                    'platform_distribution': platform_dist
-                }
-            if 'engagement_score_normalized' in engagement_features.columns:
-                engagement_trends = self._analyze_engagement_trends(engagement_features)
-            else:
-                engagement_trends = {}
-            
-            return {
-                'cluster_analysis': cluster_analysis,
-                'optimal_clusters': optimal_k,
-                'engagement_trends': engagement_trends,
-                'silhouette_scores': dict(zip(K_range, silhouette_scores))
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error in engagement pattern mining: {e}")
-            return {}
-    
     def _analyze_engagement_trends(self, engagement_data):
         try:
             platform_trends = {}
@@ -939,11 +977,9 @@ class LearningIntelligenceEngine:
     def advanced_behavioral_analytics(self):
         try:
             attention_analysis = self._model_attention_span()
-            success_patterns = self._classify_success_patterns()
             retention_analysis = self._model_retention()
             return {
                 'attention_span_analysis': attention_analysis,
-                'success_patterns': success_patterns,
                 'retention_analysis': retention_analysis
             }
             
@@ -987,48 +1023,6 @@ class LearningIntelligenceEngine:
                 
         except Exception as e:
             self.logger.error(f"Error modeling attention span: {e}")
-            return {}
-    
-    def _classify_success_patterns(self):
-        try:
-            success_data = self.engagement_df.copy()
-            success_features = []
-            feature_names = []
-            
-            if 'engagement_score_normalized' in success_data.columns:
-                success_features.append(success_data['engagement_score_normalized'].fillna(0))
-                feature_names.append('engagement_score')
-            
-            if 'views' in success_data.columns:
-                success_features.append(np.log1p(success_data['views'].fillna(0)))
-                feature_names.append('log_views')
-            
-            if 'likes' in success_data.columns:
-                success_features.append(np.log1p(success_data['likes'].fillna(0)))
-                feature_names.append('log_likes')
-            
-            if len(success_features) < 2:
-                return {}
-            X = np.column_stack(success_features)
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
-            kmeans = KMeans(n_clusters=3, random_state=42)  # High, Medium, Low success
-            clusters = kmeans.fit_predict(X_scaled)
-            cluster_analysis = {}
-            for i in range(3):
-                cluster_mask = clusters == i
-                cluster_data = success_data[cluster_mask]
-                
-                cluster_analysis[f'pattern_{i}'] = {
-                    'size': cluster_mask.sum(),
-                    'percentage': cluster_mask.sum() / len(success_data) * 100,
-                    'avg_engagement': cluster_data['engagement_score_normalized'].mean() if 'engagement_score_normalized' in cluster_data.columns else 0,
-                    'platform_distribution': cluster_data['platform'].value_counts().to_dict()
-                }
-            return cluster_analysis
-            
-        except Exception as e:
-            self.logger.error(f"Error classifying success patterns: {e}")
             return {}
     
     def _model_retention(self):
@@ -1080,7 +1074,6 @@ class LearningIntelligenceEngine:
                     'categories': self.courses_df['category'].nunique()
                 },
                 'learning_velocity': self.learning_velocity_profiling(),
-                'engagement_patterns': self.engagement_pattern_mining(),
                 'difficulty_calibration': self.content_difficulty_calibration(),
                 'learning_paths': self.learning_path_optimization(),
                 'behavioral_analytics': self.advanced_behavioral_analytics()
@@ -1151,11 +1144,6 @@ def run_learning_intelligence_analysis(db_uri=None):
             if 'overall_survival' in velocity:
                 print(f"Median completion time: {velocity['overall_survival'].get('median_completion_time', 'N/A')} days")
         
-        if 'engagement_patterns' in report:
-            patterns = report['engagement_patterns']
-            if 'optimal_clusters' in patterns:
-                print(f"Identified {patterns['optimal_clusters']} distinct engagement patterns")
-        
         if 'learning_paths' in report:
             paths = report['learning_paths']
             if 'network_size' in paths:
@@ -1187,14 +1175,6 @@ def create_learning_dashboard_data(report):
         'path_optimization': {},
         'behavioral_insights': {}
     }
-    if 'engagement_patterns' in report:
-        patterns = report['engagement_patterns']
-        dashboard_data['engagement_insights'] = {
-            'cluster_count': patterns.get('optimal_clusters', 0),
-            'cluster_analysis': patterns.get('cluster_analysis', {}),
-            'silhouette_scores': patterns.get('silhouette_scores', {}),
-            'engagement_trends': patterns.get('engagement_trends', {})
-        }
     if 'learning_velocity' in report:
         velocity = report['learning_velocity']
         dashboard_data['learning_velocity_insights'] = {
@@ -1249,19 +1229,6 @@ def generate_learning_recommendations(report):
                     recommendations['course_optimization'].append(
                         f"Consider breaking down {diff_level} courses - average duration {stats['avg_duration']:.0f} minutes"
                     )
-    
-    if 'engagement_patterns' in report:
-        patterns = report['engagement_patterns']
-        if 'cluster_analysis' in patterns:
-            for cluster_id, cluster_data in patterns['cluster_analysis'].items():
-                if cluster_data['percentage'] > 30 and 'characteristics' in cluster_data:
-                    characteristics = cluster_data['characteristics']
-                    if 'engagement_score' in characteristics:
-                        eng_score = characteristics['engagement_score']['mean']
-                        if eng_score < 0.4:
-                            recommendations['engagement_improvement'].append(
-                                f"Target improvement for {cluster_id} ({cluster_data['percentage']:.1f}% of courses) - low engagement"
-                            )
     
     if 'learning_paths' in report:
         paths = report['learning_paths']
@@ -1340,12 +1307,6 @@ def export_analysis_summary(report, filename=None):
                 'Completion Rate at 60 Days': velocity['overall_survival'].get('completion_rate_60_days', 'N/A')
             }
     
-    if 'engagement_patterns' in report:
-        patterns = report['engagement_patterns']
-        summary['Engagement Patterns'] = {
-            'Optimal Clusters Identified': patterns.get('optimal_clusters', 0),
-            'Cluster Analysis Available': bool(patterns.get('cluster_analysis', {}))
-        }
     if 'difficulty_calibration' in report:
         difficulty = report['difficulty_calibration']
         summary['Difficulty Analysis'] = {
@@ -1370,79 +1331,10 @@ def export_analysis_summary(report, filename=None):
     recommendations = generate_learning_recommendations(report)
     summary['Recommendations'] = recommendations
     return summary
-def calculate_roi_metrics(report, cost_data=None):
-    """Calculate ROI metrics for learning programs"""
-    roi_metrics = {
-        'engagement_roi': {},
-        'completion_roi': {},
-        'platform_roi': {},
-        'category_roi': {}
-    }
-    if 'engagement_patterns' in report:
-        patterns = report['engagement_patterns']
-        if 'cluster_analysis' in patterns:
-            for cluster_id, cluster_data in patterns['cluster_analysis'].items():
-                size = cluster_data.get('size', 0)
-                engagement = cluster_data.get('characteristics', {}).get('engagement_score', {}).get('mean', 0)
-                roi_metrics['engagement_roi'][cluster_id] = {
-                    'relative_value': engagement * size,
-                    'efficiency_score': engagement / max(size, 1)
-                }
-    
-    return roi_metrics
-
-def predict_learning_outcomes(report, future_days=30):
-    """Predict learning outcomes based on current trends"""
-    predictions = {
-        'completion_predictions': {},
-        'engagement_trends': {},
-        'platform_performance': {},
-        'risk_factors': []
-    }
-    if 'learning_velocity' in report:
-        velocity = report['learning_velocity']
-        if 'platform_comparison' in velocity:
-            for platform, data in velocity['platform_comparison'].items():
-                survival_30 = data.get('survival_at_30_days', 0)
-                # Simple linear extrapolation
-                predicted_completion = survival_30 * (1 + future_days/30 * 0.1)  # 10% monthly growth assumption
-                predictions['completion_predictions'][platform] = min(predicted_completion, 1.0)
-    
-    if 'behavioral_analytics' in report:
-        behavioral = report['behavioral_analytics']
-        if 'attention_span_analysis' in behavioral:
-            attention = behavioral['attention_span_analysis']
-            decay_rate = attention.get('decay_rate', 0)
-            if decay_rate > 0.2:
-                predictions['risk_factors'].append("High attention decay rate - increased dropout risk")
-    
-    return predictions
-def integrate_with_lms(report, lms_config):
-    """Integrate analysis results with Learning Management Systems"""
-    integration_results = {
-        'status': 'success',
-        'recommendations_pushed': [],
-        'dashboards_updated': [],
-        'alerts_sent': []
-    }
-    recommendations = generate_learning_recommendations(report)
-    for category, recs in recommendations.items():
-        if recs:
-            integration_results['recommendations_pushed'].append({
-                'category': category,
-                'count': len(recs),
-                'timestamp': datetime.now().isoformat()
-            })
-    
-    return integration_results
-
-
-
 def get_learning_velocity():
     velocity = dashboard_data.get('learning_velocity_insights', {})
     survival = velocity.get('overall_survival', {})
     
-    # ADD DEBUG LOGGING
     print(f"DEBUG: velocity keys: {velocity.keys()}")
     print(f"DEBUG: survival keys: {survival.keys()}")
     print(f"DEBUG: completion_times length: {len(survival.get('completion_times', []))}")
@@ -1455,77 +1347,6 @@ def get_learning_velocity():
         "platform_comparison": velocity.get('platform_comparison', {}),
         "completion_times": survival.get('completion_times', []),  # This might be empty
         "completed": survival.get('completed', [])
-    }
-def get_engagement_clusters():
-    engagement = dashboard_data.get('engagement_insights', {})
-    return {
-        "cluster_count": engagement.get('cluster_count', 0),
-        "cluster_details": engagement.get('cluster_analysis', {}),
-        "silhouette_scores": engagement.get('silhouette_scores', {}),
-        "engagement_trends": engagement.get('engagement_trends', {})
-    }
-
-def get_difficulty_stats(dashboard_data):
-    difficulty = dashboard_data.get('difficulty_insights', {})
-    return {
-        "levels": difficulty.get('difficulty_statistics', {}),
-        "tests": difficulty.get('statistical_tests', {}),
-        "complexity_scores": difficulty.get('complexity_scores', {}),
-        "platform_completion_stats": difficulty.get('platform_completion_stats', {})  # ✅ ADD THIS
-
-    }
-
-def get_behavioral_metrics():
-    behavioral = dashboard_data.get('behavioral_insights', {})
-    return {
-        "attention_decay_rate": behavioral.get('attention_span', {}).get('decay_rate', 'N/A'),
-        "optimal_duration": behavioral.get('attention_span', {}).get('optimal_duration', 'N/A'),
-        "success_patterns": behavioral.get('success_patterns', {}),
-        "retention": behavioral.get('retention_analysis', {})
-    }
-
-def get_time_series_data():
-    forecast = predict_learning_outcomes(report)
-    return {
-        "completion_predictions": forecast.get('completion_predictions', {}),
-        "engagement_trends": forecast.get('engagement_trends', {}),
-        "platform_performance": forecast.get('platform_performance', {}),
-        "risks": forecast.get('risk_factors', [])
-    }
-
-def get_network_data():
-    paths = dashboard_data.get('path_optimization', {})
-    return {
-        "network_metrics": paths.get('network_metrics', {}),
-        "optimal_paths": paths.get('optimal_paths', {}),
-        "nodes": paths.get('network_size', {}).get('nodes', 0),
-        "edges": paths.get('network_size', {}).get('edges', 0)
-    }
-
-def get_forecast_data():
-    raw = get_time_series_data()
-    return {
-        "completion_predictions": raw.get("completion_predictions", {}),
-        "risk_factors": raw.get("risks", [])
-    }
-
-
-def get_creator_insights():
-    return {
-        "total_courses": dashboard_data.get('summary_metrics', {}).get('total_courses', 0),
-        "total_platforms": dashboard_data.get('summary_metrics', {}).get('total_platforms', 0),
-        "total_categories": dashboard_data.get('summary_metrics', {}).get('total_categories', 0),
-        "timestamp": dashboard_data.get('summary_metrics', {}).get('analysis_timestamp'),
-        "price_completion_data": dashboard_data.get('pricing_data', {})
-
-    }
-
-def get_ai_recommendations(mode=None):
-    if not mode:
-        return recommendations
-    return {
-        cat: [rec for rec in recs if mode.lower() in rec.lower()]
-        for cat, recs in recommendations.items()
     }
 
 report = run_learning_intelligence_analysis()
