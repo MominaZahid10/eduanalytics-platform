@@ -2,13 +2,12 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
-from config import config_by_name
+from config import config_by_name,get_secret
 from flask_migrate import Migrate
 from datacleaning import run_comprehensive_enhancement
 from extensions import db
 
-
-config_name=os.getenv('FLASK_ENV','development')
+config_name = get_secret('FLASK_ENV', 'development')
 app=Flask(__name__)
 app.config.from_object(config_by_name[config_name])
 db.init_app(app)
