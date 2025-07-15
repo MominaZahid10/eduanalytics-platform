@@ -1,17 +1,18 @@
 import os
 from dotenv import load_dotenv
 
-# Load .env for local development
 load_dotenv()
 
 def get_database_url():
     """Get database URL from Streamlit secrets (cloud) or environment variables (local)"""
     try:
         import streamlit as st
-        # Try Streamlit secrets first (for cloud deployment)
+        print("📦 Loaded from streamlit secrets")
+
         return st.secrets["DATABASE_URL"]
     except:
-        # Fallback to environment variables (for local development)
+        print("📦 Loaded from environment variables or .env")
+
         return os.getenv("DATABASE_URL")
 
 def get_secret(key, default=None):
