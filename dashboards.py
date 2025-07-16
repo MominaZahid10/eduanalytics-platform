@@ -19,8 +19,12 @@ try:
         dashboard_data
     )
     FEATURES_AVAILABLE = True
-except ImportError:
+except Exception as e:
+    import traceback
     FEATURES_AVAILABLE = False
+    import streamlit as st
+    st.error(f"❌ Error importing features module: {e}")
+    st.text(traceback.format_exc())
 
 st.set_page_config(
     page_title="EduAnalytics Pro",
