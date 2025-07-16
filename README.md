@@ -1,102 +1,118 @@
 # 🎓 EduAnalytics Platform
 
-> *"Revealing hidden patterns in online education through advanced statistical analysis and behavioral analytics"*
+> **Unlocking insights in online education with advanced analytics and interactive dashboards.**
 
-**EduAnalytics** is a comprehensive data science platform that analyzes learning effectiveness across multiple educational platforms using sophisticated statistical methods, web scraping, and behavioral analytics. Built without machine learning dependency, it demonstrates advanced statistical modeling, survival analysis, and business intelligence capabilities.
-
----
-
-## 🚀 Key Features
-
-### 🧠 **Learning Intelligence Engine**
-- **Learning Velocity Profiling**: Survival analysis of completion rates and time-to-mastery
-- **Engagement Pattern Mining**: Time-series analysis of viewing behaviors with dropout prediction
-- **Content Difficulty Calibration**: Statistical modeling of complexity vs. success rates
-- **Learning Path Optimization**: Network analysis for optimal course sequences
-
-### 📊 **Content Intelligence Dashboard**
-- **Performance Scoring**: Multi-variable regression analysis of engagement drivers
-- **Market Gap Analysis**: Statistical demand forecasting using time-series decomposition
-- **Quality-Price Elasticity**: Economic modeling of pricing vs. completion correlation
-- **Competition Intelligence**: Comparative analysis across YouTube, Udemy, Coursera
-
-### 🔬 **Advanced Statistical Analysis**
-- **Survival Analysis**: Kaplan-Meier estimators for course completion modeling
-- **ANOVA Testing**: Platform and difficulty level performance comparison
-- **Chi-Square Tests**: Association analysis between categorical variables
-- **Regression Modeling**: Multi-dimensional success factor analysis
+EduAnalytics is a comprehensive analytics platform for exploring, visualizing, and understanding learning effectiveness across major online education platforms. It combines advanced statistics, web scraping, and interactive dashboards to deliver actionable insights for both learners and content creators.
 
 ---
 
-## 🛠️ Technical Architecture
+## 🚀 Features
 
-### **Core Analytics Stack**
+- **Learning Intelligence Engine:**
+  - Survival analysis of course completion and time-to-mastery
+  - Engagement pattern mining and dropout prediction
+  - Content difficulty calibration and learning path optimization
+- **Content Intelligence Dashboard:**
+  - Performance scoring and market gap analysis
+  - Quality-price elasticity and competition intelligence
+- **Advanced Statistical Analysis:**
+  - Survival analysis, ANOVA, chi-square, regression modeling
+- **Multi-Platform Data Collection:**
+  - YouTube, Coursera, Udemy, Reddit, and more
+- **Interactive Visualizations:**
+  - Modern, responsive dashboards with Plotly and Streamlit
+
+---
+
+## 🛠️ Tech Stack
+
+- **Backend:** Python, Flask, SQLAlchemy
+- **Frontend:** Streamlit, Plotly, Seaborn
+- **Database:** PostgreSQL (cloud), SQLite (local)
+- **Data Collection:** Custom scrapers, API integrations
+- **Statistical Libraries:** SciPy, Statsmodels, Lifelines, NetworkX
+
+---
+
+## 📊 Dashboard Views
+
+- **🎓 Learner Intelligence:**
+  - Analyze optimal learning durations, difficulty success rates, platform effectiveness, and get personalized learning path recommendations.
+- **📊 Creator Analytics:**
+  - Explore content performance, market opportunities, pricing strategies, and revenue forecasts.
+- **🔬 Advanced Insights:**
+  - Dive into statistical significance testing, survival analysis, and cross-platform studies.
+
+---
+
+## 📦 Getting Started
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/your-username/eduanalytcs.git
+cd eduanalytcs
 ```
-Statistical Analysis     │ Data Processing        │ Visualization
-├── SciPy 1.11+         │ ├── Pandas 2.1+       │ ├── Plotly 5.17+
-├── Statsmodels 0.14+   │ ├── NumPy 1.25+       │ ├── Seaborn 0.13+
-├── Lifelines           │ ├── Dask               │ ├── Streamlit 1.28+
-└── NetworkX            │ └── SQLAlchemy         │ └── Altair
+
+### 2. Install Dependencies
+```bash
+pip install -r requirements.txt
 ```
 
-### **Data Collection & Processing**
+### 3. Set Up Secrets
+- For local development, create a `.env` file or set environment variables for your database and API keys.
+- For Streamlit Cloud, add your secrets to `.streamlit/secrets.toml` (see example in repo).
+
+### 4. Initialize the Database
+```bash
+python database_setup.py
 ```
-Web Scraping            │ Database & Storage     │ APIs & Integration
-├── Requests            │ ├── PostgreSQL        │ ├── YouTube Data API v3
-├── BeautifulSoup4      │ ├── SQLite            │ ├── Coursera API
-├── Selenium            │ ├── Redis (caching)   │ ├── Reddit API
-└── fake-useragent      │ └── Parquet files     │ └── Custom scrapers
+Or use your own PostgreSQL instance and update the `DATABASE_URL` in your secrets.
+
+### 5. Run the Dashboard Locally
+```bash
+streamlit run dashboards.py
 ```
 
-## 🎯 Dashboard Views
+### 6. Deploy to Streamlit Cloud
+- Push your code to GitHub.
+- Go to [Streamlit Cloud](https://streamlit.io/cloud), create a new app, and select `dashboards.py` as the main file.
+- Add your secrets in the Streamlit Cloud UI.
 
-### 🎓 **Learner Intelligence**
-- Optimal learning duration analysis
-- Difficulty level success rates
-- Platform effectiveness comparison
-- Personalized learning path recommendations
+---
 
-### 📊 **Creator Analytics**
-- Content performance matrices
-- Market opportunity identification
-- Pricing strategy optimization
-- Revenue forecasting models
+## 📝 Example Usage
 
-### 🔬 **Advanced Insights**
-- Statistical significance testing
-- Survival analysis visualizations
-- Cross-platform comparative studies
-- Association pattern discovery
-
-## 🔍 Data Sources
-
-### **Automated Collection**
-- **YouTube**: Course videos, engagement metrics, comments
-- **Coursera**: Course catalogs, ratings, enrollment data
-- **Udemy**: Pricing, reviews, completion rates
-- **Reddit**: Community discussions, learner feedback
-
-### **Data Quality Assurance**
-- Statistical data profiling and validation
-- Automated outlier detection and handling
-- Missing data imputation using domain knowledge
-- Real-time data quality monitoring
+- **test_db.py:** Minimal app to test database connection and schema on Streamlit Cloud.
+- **dashboards.py:** Main interactive dashboard for all analytics and visualizations.
 
 ---
 
 ## 📚 Educational Value
 
-### **Learning Outcomes**
-This project demonstrates mastery of:
-- Advanced statistical analysis and hypothesis testing
-- Data engineering and ETL pipeline development
+- Advanced statistics and hypothesis testing
+- Data engineering and ETL pipelines
 - Web scraping and API integration
 - Interactive dashboard development
 - Business intelligence and data storytelling
 
-### **Skills Developed**
-- **Statistical Methods**: Survival analysis, ANOVA, regression, time series
-- **Data Processing**: Pandas, NumPy, data cleaning, validation
-- **Visualization**: Plotly, Streamlit, statistical plots
-- **Database Management**: PostgreSQL, SQLite, query optimization
-- **Web Technologies**: API integration, scraping, error handling
+---
+
+## 📄 License
+
+See [LICENSE](LICENSE) for details.
+
+---
+
+## 🌐 Live Demo
+
+Try the dashboard online:
+
+[Streamlit Cloud App](https://your-streamlit-app-url.streamlit.app/)
+
+*Replace the above URL with your actual Streamlit Cloud deployment link.*
+
+---
+
+## 🤝 Contributing
+
+Pull requests and issues are welcome! Please open an issue to discuss your ideas or report bugs.
