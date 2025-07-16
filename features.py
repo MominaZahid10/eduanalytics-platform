@@ -71,26 +71,38 @@ class LearningIntelligenceEngine:
         self._initialize_database()
     
     def _initialize_database(self):
-        """Initialize database connection with Flask app context"""
+     """Initialize database connection with flexible source resolution."""
+     try:
+        # 1. If db_uri was explicitly passed
+        if self.db_uri:
+            self.db_engine = create_engine(self.db_uri)
+            self.logger.info("✅ Database engine initialized with provided URI")
+            return
+
+        # 2. Try getting from Streamlit secrets
         try:
+            import streamlit as st
+            self.db_uri = st.secrets["DATABASE_URL"]
+            self.db_engine = create_engine(self.db_uri)
+            self.logger.info("✅ Database engine initialized from Streamlit secrets")
+            return
+        except Exception as e:
+            self.logger.warning(f"⚠️ Streamlit secrets not available or missing key: {e}")
+
+        # 3. Fallback to Flask app context
+        self._ensure_app_context()
+        if current_app:
+            self.db_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI")
             if self.db_uri:
                 self.db_engine = create_engine(self.db_uri)
-                self.logger.info("Database engine initialized with provided URI")
-            else:
-                # Try to get from Flask app context
-                self._ensure_app_context()
-                if current_app:
-                    self.db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI')
-                    if self.db_uri:
-                        self.db_engine = create_engine(self.db_uri)
-                        self.logger.info("Database engine initialized from Flask app context")
-                    else:
-                        raise ValueError("No database URI found in Flask app configuration")
-                else:
-                    raise ValueError("No Flask app context available and no db_uri provided")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize database: {e}")
-            raise
+                self.logger.info("✅ Database engine initialized from Flask app context")
+                return
+        raise ValueError("❌ No database URI found from any source")
+
+     except Exception as e:
+        self.logger.error(f"🔥 Failed to initialize database: {e}")
+        raise
+
     
     def _ensure_app_context(self):
         """Ensure Flask app context is available"""
