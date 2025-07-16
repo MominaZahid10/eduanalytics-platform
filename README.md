@@ -28,7 +28,7 @@ EduAnalytics is a comprehensive analytics platform for exploring, visualizing, a
 
 - **Backend:** Python, Flask, SQLAlchemy
 - **Frontend:** Streamlit, Plotly, Seaborn
-- **Database:** PostgreSQL (cloud), SQLite (local)
+- **Database:** Supabase (managed PostgreSQL in the cloud)
 - **Data Collection:** Custom scrapers, API integrations
 - **Statistical Libraries:** SciPy, Statsmodels, Lifelines, NetworkX
 
