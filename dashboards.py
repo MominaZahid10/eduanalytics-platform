@@ -522,14 +522,15 @@ def load_advanced_data():
             if FEATURES_AVAILABLE:
                 engine = LearningIntelligenceEngine()
                 with suppress_stdout():
-                    success = engine.load_enhanced_data()
-                
-                if success and hasattr(engine, 'completion_df') and engine.completion_df is not None:
-                    df = engine.completion_df.copy()
+                    enhanced_df, completion_df = engine.load_enhanced_data()
+                if enhanced_df is not None and completion_df is not None:
+                    df = completion_df.copy()
                 else:
+                    st.error("❌ load_enhanced_data() returned None. There was a problem loading from the database. Check your schema and data.")
                     df = create_advanced_fallback_data()
                     st.info("ℹ️ Using synthetic data for demonstration")
             else:
+                st.error("❌ FEATURES_AVAILABLE is False. The features module could not be imported.")
                 df = create_advanced_fallback_data()
                 st.info("ℹ️ Using synthetic data (features module not available)")
         
