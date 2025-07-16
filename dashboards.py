@@ -534,8 +534,9 @@ def load_advanced_data():
                 st.info("ℹ️ Using synthetic data (features module not available)")
         
         except Exception as e:
-            error_msg = str(e).encode('ascii', errors='ignore').decode('ascii')
-            st.error(f"⚠️ Error loading data: {error_msg}")
+            import traceback
+            st.error(f"⚠️ Error loading data: {e}")
+            st.text(traceback.format_exc())
             df = create_advanced_fallback_data()
             st.info("ℹ️ Switched to fallback data")
         
