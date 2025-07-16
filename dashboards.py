@@ -592,6 +592,63 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+def explanation_card(title, text):
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 1px solid #bae6fd;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        margin: 1.5rem 0 2.5rem 0;
+        color: #0c4a6e;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    ">
+        <div style="font-size:1.1rem;font-weight:600;margin-bottom:0.5rem;">{title}</div>
+        <div style="font-size:0.95rem;line-height:1.6;">{text}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def section_header(title, icon=""):
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(90deg, #6366f1 0%, #4f46e5 100%);
+        color: white;
+        padding: 1.2rem 2rem;
+        border-radius: 18px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+        font-size: 1.6rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    ">
+        <span style="font-size:2rem;">{icon}</span> {title}
+    </div>
+    """, unsafe_allow_html=True)
+
+def metric_card(label, value, icon="", color="#6366f1"):
+    st.markdown(f"""
+    <div style="
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(99,102,241,0.07);
+        padding: 1.5rem 1.2rem;
+        margin-bottom: 1.2rem;
+        border-left: 6px solid {color};
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        transition: box-shadow 0.2s;
+    ">
+        <span style="font-size:2.2rem; color:{color};">{icon}</span>
+        <div>
+            <div style="font-size:2.1rem; font-weight:700; color:#1e293b;">{value}</div>
+            <div style="font-size:1rem; color:#64748b; font-weight:500;">{label}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 if user_type == "🎓 Learner Intelligence":
     
     optimal_duration = df[df['completion_rate'] > df['completion_rate'].quantile(0.8)]['duration_minutes'].median()
