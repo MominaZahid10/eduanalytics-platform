@@ -82,7 +82,6 @@ streamlit run dashboards.py
 
 ## 📝 Example Usage
 
-- **test_db.py:** Minimal app to test database connection and schema on Streamlit Cloud.
 - **dashboards.py:** Main interactive dashboard for all analytics and visualizations.
 
 ---
@@ -107,9 +106,8 @@ See [LICENSE](LICENSE) for details.
 
 Try the dashboard online:
 
-[Streamlit Cloud App](https://your-streamlit-app-url.streamlit.app/)
+[Streamlit Cloud App](https://eduanalytics-platform-9zhvtuxvarnexaqqskkg44.streamlit.app/)
 
-*Replace the above URL with your actual Streamlit Cloud deployment link.*
 
 ---
 
