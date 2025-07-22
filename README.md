@@ -28,7 +28,7 @@ EduAnalytics is a comprehensive analytics platform for exploring, visualizing, a
 
 - **Backend:** Python, Flask, SQLAlchemy
 - **Frontend:** Streamlit, Plotly, Seaborn
-- **Database:** Supabase (managed PostgreSQL in the cloud)
+- **Database:** PostgreSQL (cloud), SQLite (local)
 - **Data Collection:** Custom scrapers, API integrations
 - **Statistical Libraries:** SciPy, Statsmodels, Lifelines, NetworkX
 
@@ -49,8 +49,8 @@ EduAnalytics is a comprehensive analytics platform for exploring, visualizing, a
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/MominaZahid10/eduanalytics.git
-cd eduanalytics
+git clone https://github.com/your-username/eduanalytcs.git
+cd eduanalytcs
 ```
 
 ### 2. Install Dependencies
@@ -60,7 +60,7 @@ pip install -r requirements.txt
 
 ### 3. Set Up Secrets
 - For local development, create a `.env` file or set environment variables for your database and API keys.
-- For Streamlit Cloud, add your secrets to `.streamlit/secrets.toml` 
+- For Streamlit Cloud, add your secrets to `.streamlit/secrets.toml` (see example in repo).
 
 ### 4. Initialize the Database
 ```bash
@@ -82,6 +82,7 @@ streamlit run dashboards.py
 
 ## 📝 Example Usage
 
+- **test_db.py:** Minimal app to test database connection and schema on Streamlit Cloud.
 - **dashboards.py:** Main interactive dashboard for all analytics and visualizations.
 
 ---
@@ -94,6 +95,11 @@ streamlit run dashboards.py
 - Interactive dashboard development
 - Business intelligence and data storytelling
 
+---
+
+## 📄 License
+
+See [LICENSE](LICENSE) for details.
 
 ---
 
@@ -101,8 +107,9 @@ streamlit run dashboards.py
 
 Try the dashboard online:
 
-[Streamlit Cloud App](https://eduanalytics-platform-9zhvtuxvarnexaqqskkg44.streamlit.app/)
+[Streamlit Cloud App](https://your-streamlit-app-url.streamlit.app/)
 
+*Replace the above URL with your actual Streamlit Cloud deployment link.*
 
 ---
 
