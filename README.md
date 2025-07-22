@@ -28,7 +28,7 @@ EduAnalytics is a comprehensive analytics platform for exploring, visualizing, a
 
 - **Backend:** Python, Flask, SQLAlchemy
 - **Frontend:** Streamlit, Plotly, Seaborn
-- **Database:** PostgreSQL (cloud), SQLite (local)
+- **Database:** PostgreSQL (cloud)
 - **Data Collection:** Custom scrapers, API integrations
 - **Statistical Libraries:** SciPy, Statsmodels, Lifelines, NetworkX
 
@@ -49,8 +49,8 @@ EduAnalytics is a comprehensive analytics platform for exploring, visualizing, a
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/eduanalytcs.git
-cd eduanalytcs
+git clone https://github.com/MominaZahid10/eduanalytics.git
+cd eduanalytics
 ```
 
 ### 2. Install Dependencies
@@ -60,7 +60,6 @@ pip install -r requirements.txt
 
 ### 3. Set Up Secrets
 - For local development, create a `.env` file or set environment variables for your database and API keys.
-- For Streamlit Cloud, add your secrets to `.streamlit/secrets.toml` (see example in repo).
 
 ### 4. Initialize the Database
 ```bash
