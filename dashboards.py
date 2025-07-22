@@ -57,6 +57,7 @@ st.markdown("""
         border-radius: 16px;
         margin-bottom: 2rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        font-size: 1.3rem;
     }
     
     .dashboard-header h1 {
@@ -73,146 +74,102 @@ st.markdown("""
         font-weight: 400;
     }
     
-    /* Metric Cards */
-    .metric-grid {
+    /* Metric Cards, Section Containers, Advanced Cards, Recommendation Cards */
+    .metric-card, .section-container, .advanced-card, .recommendation-card {
+        border-radius: 16px;
+        box-shadow: 0 2px 12px rgba(99,102,241,0.07);
+        background: white;
+        margin-bottom: 1.1rem;
+        padding: 0.7rem 0.8rem;
+        transition: box-shadow 0.2s, transform 0.2s;
+        min-width: 0;
+        flex: 1 1 0%;
+    }
+    .metric-card:hover, .advanced-card:hover, .recommendation-card:hover {
+        box-shadow: 0 8px 32px rgba(99,102,241,0.13);
+        transform: translateY(-2px) scale(1.02);
+    }
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 1.2rem;
+        color: #4f46e5;
+        letter-spacing: -0.01em;
+    }
+    .insight-pill {
+        background: linear-gradient(90deg, #e0e7ff 0%, #f0f9ff 100%);
+        border-radius: 20px;
+        padding: 0.7rem 1.2rem;
+        font-size: 1rem;
+        color: #3730a3;
+        margin: 1.2rem 0;
+        display: inline-block;
+        font-weight: 600;
+    }
+    /* Responsive grid for metrics and recommendations */
+    .metric-grid, .advanced-grid, .rec-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.7rem;
         margin-bottom: 2rem;
     }
-    
-    .metric-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e2e8f0;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .metric-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #4f46e5, #6366f1);
-    }
-    
-    .metric-card:hover {
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-        transform: translateY(-2px);
-    }
-    
-    .metric-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 0.5rem;
-        line-height: 1.1;
-    }
-    
-    .metric-label {
-        font-size: 0.875rem;
-        color: #64748b;
-        font-weight: 500;
-        margin-bottom: 0.25rem;
-    }
-    
-    .metric-sublabel {
-        font-size: 0.75rem;
-        color: #94a3b8;
-        font-weight: 400;
-    }
-    
     /* Chart Containers */
     .chart-container {
         background: white;
-        padding: 2rem;
+        padding: 1.2rem;
         border-radius: 16px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         border: 1px solid #e2e8f0;
         margin-bottom: 2rem;
     }
-    
-    .chart-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #1e293b;
-        margin-bottom: 0.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .chart-subtitle {
-        font-size: 0.875rem;
-        color: #64748b;
-        margin-bottom: 1.5rem;
-        font-weight: 400;
-        line-height: 1.5;
-    }
-    
-    /* Insight Cards */
-    .insight-card {
+    /* Recommendation Card */
+    .recommendation-card {
         background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1.5rem 0;
         border: 1px solid #bae6fd;
-        border-left: 4px solid #0ea5e9;
-    }
-    
-    .insight-title {
+        border-radius: 12px;
+        padding: 1.2rem 1rem;
+        margin-top: 2rem;
         color: #0c4a6e;
-        font-size: 1rem;
+        font-family: 'Inter', sans-serif;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .recommendation-card .rec-title {
+        font-size: 1.1rem;
         font-weight: 600;
         margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
+    }
+    .recommendation-card .rec-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 0.5rem;
     }
-    
-    .insight-text {
-        color: #164e63;
-        font-size: 0.875rem;
-        line-height: 1.6;
+    .recommendation-card .rec-item {
+        font-size: 0.9rem;
+        line-height: 1.4;
     }
-    
-    .insight-text strong {
+    .recommendation-card .rec-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        color: #0369a1;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.12rem;
+    }
+    .recommendation-card .rec-value {
+        font-size: 1rem;
+        font-weight: 700;
         color: #0c4a6e;
-        font-weight: 600;
     }
-    
-    /* Clean Info Cards */
-    .info-card {
-        background: #f8fafc;
-        padding: 1.25rem;
-        border-radius: 8px;
-        border: 1px solid #e2e8f0;
-        margin: 1rem 0;
-        font-size: 0.875rem;
-        color: #475569;
-        line-height: 1.6;
+    .recommendation-card .rec-desc {
+        font-size: 0.75rem;
+        color: #164e63;
     }
-    
-    .info-card-title {
-        font-weight: 600;
-        color: #334155;
-        margin-bottom: 0.5rem;
-        font-size: 0.875rem;
-    }
-    
     /* Sidebar Styles */
     .sidebar .sidebar-content {
         background: white;
         border-radius: 12px;
         padding: 1.5rem;
     }
-    
     .sidebar-metric {
         background: #f8fafc;
         padding: 1.25rem;
@@ -220,22 +177,19 @@ st.markdown("""
         margin: 1rem 0;
         border-left: 3px solid #4f46e5;
     }
-    
     .sidebar-metric-value {
-        font-size: 1.5rem;
+        font-size: 1.1rem;
         font-weight: 600;
         color: #1e293b;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.18rem;
     }
-    
     .sidebar-metric-label {
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         color: #64748b;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
-    
     /* Advanced Section Styles */
     .advanced-grid {
         display: grid;
@@ -327,76 +281,35 @@ st.markdown("""
         background: #94a3b8;
     }
     
-    /* Responsive design */
-    @media (max-width: 768px) {
+    /* Responsive design for mobile */
+    @media (max-width: 900px) {
+        .metric-grid, .advanced-grid, .rec-grid {
+            grid-template-columns: 1fr !important;
+            gap: 0.5rem !important;
+        }
+        .section-container, .advanced-card, .recommendation-card, .metric-card {
+            padding: 0.5rem 0.3rem !important;
+        }
+        .section-title {
+            font-size: 1rem !important;
+        }
         .dashboard-header {
-            padding: 1.5rem;
-        }
-        
-        .dashboard-header h1 {
-            font-size: 1.75rem;
-        }
-        
-        .metric-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .chart-container {
-            padding: 1.5rem;
-        }
-        
-        .advanced-grid {
-            grid-template-columns: 1fr;
+            padding: 0.5rem !important;
+            font-size: 1rem !important;
         }
     }
-            
-    .recommendation-card {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    border: 1px solid #bae6fd;
-    border-radius: 12px;
-    padding: 1.5rem 2rem;
-    margin-top: 2rem;
-    color: #0c4a6e;
-    font-family: 'Inter', sans-serif;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.recommendation-card .rec-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-}
-
-.recommendation-card .rec-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-}
-
-.recommendation-card .rec-item {
-    font-size: 0.95rem;
-    line-height: 1.6;
-}
-
-.recommendation-card .rec-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    font-weight: 600;
-    color: #0369a1;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.25rem;
-}
-
-.recommendation-card .rec-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #0c4a6e;
-}
-
-.recommendation-card .rec-desc {
-    font-size: 0.85rem;
-    color: #164e63;
-}
+    @media (max-width: 600px) {
+        .dashboard-header {
+            font-size: 0.9rem !important;
+            padding: 0.2rem !important;
+        }
+        .section-title {
+            font-size: 0.8rem !important;
+        }
+        .metric-card, .section-container, .advanced-card, .recommendation-card {
+            padding: 0.2rem 0.05rem !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -627,24 +540,33 @@ def section_header(title, icon=""):
     </div>
     """, unsafe_allow_html=True)
 
-def metric_card(label, value, icon="", color="#6366f1"):
+def metric_card(label, value, sublabel="", icon="", color="#6366f1"):
     st.markdown(f"""
     <div style="
         background: white;
-        border-radius: 14px;
+        border-radius: 16px;
         box-shadow: 0 2px 12px rgba(99,102,241,0.07);
-        padding: 1.5rem 1.2rem;
-        margin-bottom: 1.2rem;
+        padding: 0.7rem 0.8rem;
+        margin-bottom: 0.7rem;
         border-left: 6px solid {color};
         display: flex;
         align-items: center;
-        gap: 1.2rem;
+        gap: 0.7rem;
+        min-width: 0;
+        flex: 1 1 0%;
         transition: box-shadow 0.2s;
     ">
-        <span style="font-size:2.2rem; color:{color};">{icon}</span>
-        <div>
-            <div style="font-size:2.1rem; font-weight:700; color:#1e293b;">{value}</div>
-            <div style="font-size:1rem; color:#64748b; font-weight:500;">{label}</div>
+        <span style="font-size:1.3rem; color:{color}; min-width:1.3rem;">{icon}</span>
+        <div style="min-width:0;">
+            <div style="font-size:1.15rem; font-weight:700; color:#1e293b; letter-spacing:-0.01em; font-family:'Inter',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                {value}
+            </div>
+            <div style="font-size:0.92rem; font-weight:600; color:#4f46e5; margin-top:0.05rem; font-family:'Inter',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                {label}
+            </div>
+            <div style="font-size:0.8rem; color:#64748b; font-weight:400; margin-top:0.08rem; font-family:'Inter',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                {sublabel}
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -662,41 +584,17 @@ if user_type == "🎓 Learner Intelligence":
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{optimal_duration:.0f}min</div>
-            <div class="metric-label">Optimal Duration</div>
-            <div class="metric-sublabel">For maximum retention</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("Optimal Duration", f"{optimal_duration:.0f}min", "For maximum retention", "⏱️", "#6366f1")
     
     with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{best_completion:.1%}</div>
-            <div class="metric-label">Best Success Rate</div>
-            <div class="metric-sublabel">{best_difficulty} difficulty</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("Best Success Rate", f"{best_completion:.1%}", f"{best_difficulty} difficulty", "🏆", "#10b981")
     
     with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{platform_completion:.1%}</div>
-            <div class="metric-label">Top Platform</div>
-            <div class="metric-sublabel">{best_platform}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("Top Platform", f"{platform_completion:.1%}", f"{best_platform}", "🎓", "#f59e42")
     
     with col4:
         learning_velocity = df['learning_efficiency'].quantile(0.75)
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{learning_velocity:.3f}</div>
-            <div class="metric-label">Learning Velocity</div>
-            <div class="metric-sublabel">Top 25% efficiency</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("Learning Velocity", f"{learning_velocity:.3f}", "Top 25% efficiency", "⚡", "#6366f1")
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -888,43 +786,19 @@ elif user_type == "📊 Creator Analytics":
     
     with col1:
         avg_engagement = df['engagement_score'].mean()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{avg_engagement:.1%}</div>
-            <div class="metric-label">Avg Engagement</div>
-            <div class="metric-sublabel">Across all content</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("Avg Engagement", f"{avg_engagement:.1%}", "Across all content", "📈", "#6366f1")
     
     with col2:
         high_performers = (df['completion_rate'] > df['completion_rate'].quantile(0.8)).sum()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{high_performers}</div>
-            <div class="metric-label">High Performers</div>
-            <div class="metric-sublabel">Top 20% completion</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("High Performers", f"{high_performers}", "Top 20% completion", "⭐", "#10b981")
     
     with col3:
         total_revenue = (df['price'] * df['enrollments']).sum()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">${total_revenue:,.0f}</div>
-            <div class="metric-label">Total Revenue</div>
-            <div class="metric-sublabel">Estimated</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("Total Revenue", f"${total_revenue:,.0f}", "Estimated", "💰", "#f59e42")
     
     with col4:
         avg_roi = df['roi_score'].mean()
-        st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-value">{avg_roi:.2f}</div>
-            <div class="metric-label">ROI Score</div>
-            <div class="metric-sublabel">Quality/Price ratio</div>
-        </div>
-        """, unsafe_allow_html=True)
+        metric_card("ROI Score", f"{avg_roi:.2f}", "Quality/Price ratio", "📊", "#6366f1")
 
     st.markdown('<div class="section-container">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">📊 Content Performance Matrix</div>', unsafe_allow_html=True)
@@ -1259,3 +1133,4 @@ elif user_type == "🔬 Advanced Insights":
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
+    
