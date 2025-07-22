@@ -33,7 +33,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -252,6 +251,55 @@ st.markdown("""
         letter-spacing: 0.05em;
     }
     
+    .stat-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 4px solid #6366f1;
+        margin-bottom: 1rem;
+    }
+    
+    .analysis-section {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    .analysis-description {
+        background: #f8fafc;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        border-left: 4px solid #6366f1;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    
+    .table-container {
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 2rem;
+        color: #64748b;
+        font-style: italic;
+    }
+    
+    .error-msg {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
     /* Clean Streamlit elements */
     .stApp > header {
         background: transparent;
@@ -335,6 +383,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def standardize_column_names(df):
+    """Standardize column names for consistent access"""
     column_mapping = {}
     important_columns = [
         'engagement_score', 'rating', 'views', 'likes', 'comments', 
@@ -431,7 +480,7 @@ def create_advanced_fallback_data():
     }
     return pd.DataFrame(data)
 
-@st.cache_data(ttl=3600)
+# Remove the problematic @st.cache_data decorator and simplify the function
 def load_advanced_data():
     """Load data with preprocessing and enhanced derived columns"""
     with st.spinner("Loading data..."):
@@ -467,8 +516,11 @@ def load_advanced_data():
         
         return df
 
-with st.spinner("Loading analytics data..."):
-    df = load_advanced_data()
+# Initialize data without caching to avoid tokenization issues
+if 'df' not in st.session_state:
+    st.session_state.df = load_advanced_data()
+
+df = st.session_state.df
 
 st.sidebar.markdown("### Navigation")
 user_type = st.sidebar.selectbox(
@@ -1133,4 +1185,3 @@ elif user_type == "🔬 Advanced Insights":
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
-    
